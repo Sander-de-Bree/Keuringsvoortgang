@@ -1,7 +1,7 @@
 const STORAGE_KEY = 'keuringsvoortgang-giga-leopard-v1';
 const THEME_KEY = 'keuringsvoortgang-theme';
 const statuses = ['Niet gestart', 'In uitvoering', 'Goedgekeurd', 'Afgekeurd'];
-const sectionOrder = ['CDG', 'VH1A', 'VH1B', 'VH1C', 'VH1D', 'VH3A', 'VH3B', 'VH3C', 'VH3D', 'VH5A', 'VH5B', 'VH5C', 'VH5D', 'Overig'];
+const sectionOrder = ['CDG', 'VH1A', 'VH1B', 'VH1C', 'VH1D', 'VH3A', 'VH3B', 'VH3C', 'VH3D', 'VH5A', 'VH5B', 'VH5C', 'VH5D', 'Terreinkeuring'];
 const standardInspections = [
   'Roxtec doorvoeringen',
   'Buiten kabellabels LS',
@@ -25,7 +25,7 @@ let expandedSection = 'CDG';
 let toastTimer;
 
 function defaultInspections() {
-  return sectionOrder.filter(section => section !== 'Overig').flatMap(section =>
+  return sectionOrder.filter(section => section !== 'Terreinkeuring').flatMap(section =>
     standardInspections.map((title, index) => ({
       id: `default-${section}-${index + 1}`,
       section,
@@ -50,16 +50,25 @@ function loadInspections() {
   const cleaned = saved
     .filter(item => item && typeof item === 'object')
     .filter(item => !/^k-[1-9]$/.test(String(item.id || '')) && !oldExampleTitles.has(String(item.title || '')))
-    .map((item, index) => ({
-      id: String(item.id || `keuring-${index}`),
-      title: String(item.title || 'Naamloze keuring'),
-      section: sectionOrder.includes(item.section) ? item.section : 'Overig',
-      status: statuses.includes(item.status) ? item.status : 'Niet gestart',
-      owner: String(item.owner || '')
-    }));
+    .map((item, index) => {
+      const savedSection = String(item.section || 'Terreinkeuring');
+      const migratedSection = savedSection === 'Overig' ? 'Terreinkeuring' : savedSection;
+      return {
+        id: String(item.id || `keuring-${index}`),
+        title: String(item.title || 'Naamloze keuring'),
+        section: sectionOrder.includes(migratedSection) ? migratedSection : 'Terreinkeuring',
+        status: statuses.includes(item.status) ? item.status : 'Niet gestart',
+        owner: String(item.owner || '')
+      };
+    });
   const existingIds = new Set(cleaned.map(item => item.id));
   for (const inspection of defaultInspections()) {
     if (!existingIds.has(inspection.id)) cleaned.push(inspection);
+  }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+  } catch (error) {
+    console.warn('Gemigreerde keuringen konden niet worden opgeslagen.', error);
   }
   return cleaned;
 }
@@ -106,10 +115,7 @@ function render() {
     const isExpanded = expandedSection === section;
     const list = items.length ? items.map(item => `
       <div class="inspection-row">
-        <label class="inspection-check">
-          <input type="checkbox" data-check-id="${escapeHTML(item.id)}" ${item.status === 'Goedgekeurd' ? 'checked' : ''} aria-label="${item.status === 'Goedgekeurd' ? 'Markeer als niet afgerond:' : 'Markeer als afgerond:'} ${escapeHTML(item.title)}">
-          <span class="checkmark" aria-hidden="true"></span>
-        </label>
+        <label class="inspection-check"><input type="checkbox" data-check-id="${escapeHTML(item.id)}" ${item.status === 'Goedgekeurd' ? 'checked' : ''} aria-label="${item.status === 'Goedgekeurd' ? 'Markeer als niet afgerond:' : 'Markeer als afgerond:'} ${escapeHTML(item.title)}"><span class="checkmark" aria-hidden="true"></span></label>
         <span class="row-marker marker-${statusClass(item.status)}" aria-hidden="true"></span>
         <span class="inspection-row-title ${item.status === 'Goedgekeurd' ? 'is-complete' : ''}">${escapeHTML(item.title)}</span>
         <span class="owner-cell">${item.owner ? escapeHTML(item.owner) : '<span class="muted">Niet toegewezen</span>'}</span>
@@ -172,11 +178,7 @@ function openAddDialog(section = expandedSection || 'CDG') {
 function setTheme(theme) {
   const normalizedTheme = theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = normalizedTheme;
-  try {
-    localStorage.setItem(THEME_KEY, normalizedTheme);
-  } catch (error) {
-    console.warn('Themakeuze kon niet worden opgeslagen.', error);
-  }
+  try { localStorage.setItem(THEME_KEY, normalizedTheme); } catch (error) { console.warn('Themakeuze kon niet worden opgeslagen.', error); }
   updateThemeButton();
 }
 
@@ -190,7 +192,6 @@ function updateThemeButton() {
   button.innerHTML = dark ? '<span aria-hidden="true">☀</span><span class="theme-label">Licht</span>' : '<span aria-hidden="true">☾</span><span class="theme-label">Donker</span>';
 }
 try {
-  // Dark is the default unless the visitor has explicitly selected a theme.
   const savedTheme = localStorage.getItem(THEME_KEY);
   setTheme(savedTheme === 'light' ? 'light' : 'dark');
 } catch (error) {
@@ -212,13 +213,7 @@ document.getElementById('inspection-form').addEventListener('submit', event => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   const section = String(form.get('section'));
-  inspections.push({
-    id: `k-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    title: String(form.get('title')).trim(),
-    section,
-    status: String(form.get('status')),
-    owner: String(form.get('owner')).trim()
-  });
+  inspections.push({ id: `k-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, title: String(form.get('title')).trim(), section, status: String(form.get('status')), owner: String(form.get('owner')).trim() });
   saveInspections();
   event.currentTarget.reset();
   closeDialog();
