@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#102b3f">
+  <meta name="description" content="Overzicht van keuringsstatussen voor project GIGA Leopard.">
+  <title>Keuringsvoortgang — GIGA Leopard</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="Keuringsvoortgang startpagina">
+      <span class="brand-mark" aria-hidden="true">K</span>
+      <span>Keurings<span class="brand-light">voortgang</span></span>
+    </a>
+    <div class="topbar-project"><span class="live-dot"></span> Project <strong>GIGA Leopard</strong></div>
+  </header>
+
+  <main class="page-shell">
+    <section class="page-heading" aria-labelledby="page-title">
+      <div>
+        <p class="eyebrow">PROJECTDASHBOARD</p>
+        <h1 id="page-title">Keuringsstatus</h1>
+        <p class="subtitle">Houd grip op de voortgang van alle keuringen per onderdeel.</p>
+      </div>
+      <button class="button button-primary" id="add-inspection" type="button"><span aria-hidden="true">＋</span> Keuring toevoegen</button>
+    </section>
+
+    <section class="summary-grid" aria-label="Samenvatting keuringen">
+      <article class="summary-card summary-total"><div class="summary-label">Totaal keuringen</div><div class="summary-bottom"><strong id="total-count">0</strong><span class="summary-icon" aria-hidden="true">▤</span></div></article>
+      <article class="summary-card summary-progress"><div class="summary-label">In uitvoering</div><div class="summary-bottom"><strong id="progress-count">0</strong><span class="summary-icon" aria-hidden="true">◷</span></div></article>
+      <article class="summary-card summary-approved"><div class="summary-label">Goedgekeurd</div><div class="summary-bottom"><strong id="approved-count">0</strong><span class="summary-icon" aria-hidden="true">✓</span></div></article>
+      <article class="summary-card summary-attention"><div class="summary-label">Aandacht nodig</div><div class="summary-bottom"><strong id="attention-count">0</strong><span class="summary-icon" aria-hidden="true">!</span></div></article>
+    </section>
+
+    <section class="work-section" aria-labelledby="sections-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">WERKVERDELING</p><h2 id="sections-title">Keuringen per sectie</h2></div>
+        <label class="search-box"><span class="sr-only">Zoek keuringen</span><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Zoek keuring..." autocomplete="off"></label>
+      </div>
+      <div class="filters" role="group" aria-label="Filter op status">
+        <button class="filter-chip is-active" data-filter="Alles" type="button">Alles <span id="filter-total">0</span></button>
+        <button class="filter-chip" data-filter="Niet gestart" type="button">Niet gestart</button>
+        <button class="filter-chip" data-filter="In uitvoering" type="button">In uitvoering</button>
+        <button class="filter-chip" data-filter="Goedgekeurd" type="button">Goedgekeurd</button>
+        <button class="filter-chip" data-filter="Afgekeurd" type="button">Afgekeurd</button>
+      </div>
+      <div id="sections-container" class="sections-container" aria-live="polite"></div>
+    </section>
+    <footer class="page-footer">Gegevens worden lokaal in deze browser opgeslagen.</footer>
+  </main>
+
+  <dialog id="inspection-dialog" class="inspection-dialog">
+    <form id="inspection-form">
+      <div class="dialog-heading"><div><p class="eyebrow">NIEUWE REGEL</p><h2>Keuring toevoegen</h2></div><button class="icon-button" type="button" id="close-dialog" aria-label="Sluiten">×</button></div>
+      <label class="form-field">Omschrijving<input name="title" required maxlength="100" placeholder="Bijv. Visuele inspectie leidingwerk"></label>
+      <label class="form-field">Sectie<select name="section" required><option value="Constructie">Constructie</option><option value="Installaties">Installaties</option><option value="Brandveiligheid">Brandveiligheid</option><option value="Afbouw">Afbouw</option><option value="Werktuigbouw">Werktuigbouw</option></select></label>
+      <label class="form-field">Status<select name="status" required><option>Niet gestart</option><option>In uitvoering</option><option>Goedgekeurd</option><option>Afgekeurd</option></select></label>
+      <label class="form-field">Verantwoordelijke <span class="optional">(optioneel)</span><input name="owner" maxlength="60" placeholder="Naam verantwoordelijke"></label>
+      <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-dialog">Annuleren</button><button class="button button-primary" type="submit">Keuring opslaan</button></div>
+    </form>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
