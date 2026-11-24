@@ -1,22 +1,8 @@
 const STORAGE_KEY = 'keuringsvoortgang-giga-leopard-v1';
 const THEME_KEY = 'keuringsvoortgang-theme';
-const statuses = ['Niet gestart', 'In uitvoering', 'Goedgekeurd', 'Afgekeurd'];
+const statuses = ['Niet gestart', 'Goedgekeurd', 'Afgekeurd'];
 const sectionOrder = ['CDG', 'VH1A', 'VH1B', 'VH1C', 'VH1D', 'VH3A', 'VH3B', 'VH3C', 'VH3D', 'VH5A', 'VH5B', 'VH5C', 'VH5D', 'Terreinkeuring'];
-const standardInspections = [
-  'Roxtec doorvoeringen',
-  'Buiten kabellabels LS',
-  'Buiten kabellabels MS',
-  'Binnen kabellabels LS',
-  'Binnen kabellabels MS',
-  'Potentiaal aarding',
-  'Aanhaalmomenten aarding'
-];
-const oldExampleTitles = new Set([
-  'Controle staalconstructie', 'Lasinspectie hoofdverbindingen', 'Controle conservering',
-  'Elektrische installatie — metingen', 'Controle aarding en potentiaalvereffening',
-  'Inspectie brandwerende doorvoeringen', 'Controle noodverlichting',
-  'Oplevercontrole technische ruimten', 'Druktest leidingwerk'
-]);
+const standardInspections = ['Roxtec doorvoeringen', 'Buiten kabellabels LS', 'Buiten kabellabels MS', 'Binnen kabellabels LS', 'Binnen kabellabels MS', 'Potentiaal aarding', 'Aanhaalmomenten aarding'];
 
 let inspections = loadInspections();
 let activeFilter = 'Alles';
@@ -26,13 +12,7 @@ let toastTimer;
 
 function defaultInspections() {
   return sectionOrder.filter(section => section !== 'Terreinkeuring').flatMap(section =>
-    standardInspections.map((title, index) => ({
-      id: `default-${section}-${index + 1}`,
-      section,
-      title,
-      status: 'Niet gestart',
-      owner: ''
-    }))
+    standardInspections.map((title, index) => ({ id: `default-${section}-${index + 1}`, section, title, status: 'Niet gestart', owner: '' }))
   );
 }
 
@@ -47,38 +27,32 @@ function loadInspections() {
   } catch (error) {
     console.warn('Opgeslagen keuringen konden niet worden gelezen.', error);
   }
+
   const cleaned = saved
     .filter(item => item && typeof item === 'object')
-    .filter(item => !/^k-[1-9]$/.test(String(item.id || '')) && !oldExampleTitles.has(String(item.title || '')))
     .map((item, index) => {
       const savedSection = String(item.section || 'Terreinkeuring');
-      const migratedSection = savedSection === 'Overig' ? 'Terreinkeuring' : savedSection;
+      const section = savedSection === 'Overig' ? 'Terreinkeuring' : savedSection;
       return {
         id: String(item.id || `keuring-${index}`),
         title: String(item.title || 'Naamloze keuring'),
-        section: sectionOrder.includes(migratedSection) ? migratedSection : 'Terreinkeuring',
-        status: statuses.includes(item.status) ? item.status : 'Niet gestart',
+        section: sectionOrder.includes(section) ? section : 'Terreinkeuring',
+        status: item.status === 'In uitvoering' ? 'Niet gestart' : (statuses.includes(item.status) ? item.status : 'Niet gestart'),
         owner: String(item.owner || '')
       };
     });
+
   const existingIds = new Set(cleaned.map(item => item.id));
   for (const inspection of defaultInspections()) {
     if (!existingIds.has(inspection.id)) cleaned.push(inspection);
   }
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
-  } catch (error) {
-    console.warn('Gemigreerde keuringen konden niet worden opgeslagen.', error);
-  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned)); } catch (error) { console.warn(error); }
   return cleaned;
 }
 
 function saveInspections() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections));
-  } catch (error) {
-    showToast('Opslaan is niet gelukt. Controleer de browserinstellingen.');
-  }
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections)); }
+  catch (error) { showToast('Opslaan is niet gelukt. Controleer de browserinstellingen.'); }
 }
 
 function escapeHTML(value) {
@@ -86,7 +60,7 @@ function escapeHTML(value) {
 }
 
 function statusClass(status) {
-  return ({ 'Niet gestart': 'pending', 'In uitvoering': 'progress', 'Goedgekeurd': 'approved', 'Afgekeurd': 'rejected' })[status] || 'pending';
+  return ({ 'Niet gestart': 'pending', 'Goedgekeurd': 'approved', 'Afgekeurd': 'rejected' })[status] || 'pending';
 }
 
 function sectionProgress(section) {
@@ -104,7 +78,6 @@ function matchesInspection(item) {
 
 function render() {
   document.getElementById('total-count').textContent = inspections.length;
-  document.getElementById('progress-count').textContent = inspections.filter(item => item.status === 'In uitvoering').length;
   document.getElementById('approved-count').textContent = inspections.filter(item => item.status === 'Goedgekeurd').length;
   document.getElementById('attention-count').textContent = inspections.filter(item => item.status === 'Afgekeurd').length;
   document.getElementById('filter-total').textContent = inspections.length;
@@ -123,20 +96,10 @@ function render() {
         <select class="status-select status-${statusClass(item.status)}" id="status-${escapeHTML(item.id)}" data-status-id="${escapeHTML(item.id)}">${statuses.map(status => `<option${item.status === status ? ' selected' : ''}>${status}</option>`).join('')}</select>
       </div>`).join('') : '<p class="section-empty">Geen keuringen bij deze zoekopdracht of status.</p>';
 
-    return `<article class="section-card ${isExpanded ? 'is-expanded' : ''}">
-      <button class="section-toggle" type="button" data-section="${escapeHTML(section)}" aria-expanded="${isExpanded}">
-        <span class="section-card-main"><span class="section-name">${escapeHTML(section)}</span><span class="section-count">${progress.approved} van ${progress.total} goedgekeurd</span></span>
-        <span class="section-card-progress"><strong>${progress.percent}%</strong><span class="progress-track" role="progressbar" aria-label="Voortgang ${escapeHTML(section)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}"><span style="width:${progress.percent}%"></span></span></span>
-        <span class="section-chevron" aria-hidden="true">⌄</span>
-      </button>
-      ${isExpanded ? `<div class="section-content"><div class="inspection-list">${list}</div><button class="button button-add-section" type="button" data-add-section="${escapeHTML(section)}"><span aria-hidden="true">＋</span> Keuring toevoegen aan ${escapeHTML(section)}</button></div>` : ''}
-    </article>`;
+    return `<article class="section-card ${isExpanded ? 'is-expanded' : ''}"><button class="section-toggle" type="button" data-section="${escapeHTML(section)}" aria-expanded="${isExpanded}"><span class="section-card-main"><span class="section-name">${escapeHTML(section)}</span><span class="section-count">${progress.approved} van ${progress.total} goedgekeurd</span></span><span class="section-card-progress"><strong>${progress.percent}%</strong><span class="progress-track" role="progressbar" aria-label="Voortgang ${escapeHTML(section)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}"><span style="width:${progress.percent}%"></span></span></span><span class="section-chevron" aria-hidden="true">⌄</span></button>${isExpanded ? `<div class="section-content"><div class="inspection-list">${list}</div><button class="button button-add-section" type="button" data-add-section="${escapeHTML(section)}"><span aria-hidden="true">＋</span> Keuring toevoegen aan ${escapeHTML(section)}</button></div>` : ''}</article>`;
   }).join('');
 
-  document.querySelectorAll('.section-toggle').forEach(button => button.addEventListener('click', () => {
-    expandedSection = expandedSection === button.dataset.section ? '' : button.dataset.section;
-    render();
-  }));
+  document.querySelectorAll('.section-toggle').forEach(button => button.addEventListener('click', () => { expandedSection = expandedSection === button.dataset.section ? '' : button.dataset.section; render(); }));
   document.querySelectorAll('[data-check-id]').forEach(input => input.addEventListener('change', updateCheck));
   document.querySelectorAll('[data-status-id]').forEach(select => select.addEventListener('change', updateStatus));
   document.querySelectorAll('[data-add-section]').forEach(button => button.addEventListener('click', () => openAddDialog(button.dataset.addSection)));
@@ -178,26 +141,19 @@ function openAddDialog(section = expandedSection || 'CDG') {
 function setTheme(theme) {
   const normalizedTheme = theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = normalizedTheme;
-  try { localStorage.setItem(THEME_KEY, normalizedTheme); } catch (error) { console.warn('Themakeuze kon niet worden opgeslagen.', error); }
+  try { localStorage.setItem(THEME_KEY, normalizedTheme); } catch (error) { console.warn(error); }
   updateThemeButton();
 }
 
-document.getElementById('theme-toggle').addEventListener('click', () => {
-  setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
-});
+document.getElementById('theme-toggle').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
 function updateThemeButton() {
   const dark = document.documentElement.dataset.theme === 'dark';
   const button = document.getElementById('theme-toggle');
   button.setAttribute('aria-label', dark ? 'Schakel naar lichte modus' : 'Schakel naar donkere modus');
   button.innerHTML = dark ? '<span aria-hidden="true">☀</span><span class="theme-label">Licht</span>' : '<span aria-hidden="true">☾</span><span class="theme-label">Donker</span>';
 }
-try {
-  const savedTheme = localStorage.getItem(THEME_KEY);
-  setTheme(savedTheme === 'light' ? 'light' : 'dark');
-} catch (error) {
-  document.documentElement.dataset.theme = 'dark';
-  updateThemeButton();
-}
+try { setTheme(localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark'); }
+catch (error) { document.documentElement.dataset.theme = 'dark'; updateThemeButton(); }
 
 document.getElementById('add-inspection').addEventListener('click', () => openAddDialog());
 document.getElementById('close-dialog').addEventListener('click', closeDialog);
@@ -206,9 +162,10 @@ dialog.addEventListener('click', event => { if (event.target === dialog) closeDi
 document.getElementById('search-input').addEventListener('input', event => { searchTerm = event.target.value; render(); });
 document.querySelectorAll('.filter-chip').forEach(button => button.addEventListener('click', () => {
   activeFilter = button.dataset.filter;
-  document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.toggle('is-active', chip === button));
+  document.querySelectorAll('.filter-chip').forAll;
   render();
 }));
+
 document.getElementById('inspection-form').addEventListener('submit', event => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);

@@ -21,7 +21,6 @@
     </section>
     <section class="summary-grid" aria-label="Samenvatting keuringen">
       <article class="summary-card summary-total"><div class="summary-label">Totaal keuringen</div><div class="summary-bottom"><strong id="total-count">0</strong><span class="summary-icon" aria-hidden="true">▤</span></div></article>
-      <article class="summary-card summary-progress"><div class="summary-label">In uitvoering</div><div class="summary-bottom"><strong id="progress-count">0</strong><span class="summary-icon" aria-hidden="true">◷</span></div></article>
       <article class="summary-card summary-approved"><div class="summary-label">Goedgekeurd</div><div class="summary-bottom"><strong id="approved-count">0</strong><span class="summary-icon" aria-hidden="true">✓</span></div></article>
       <article class="summary-card summary-attention"><div class="summary-label">Aandacht nodig</div><div class="summary-bottom"><strong id="attention-count">0</strong><span class="summary-icon" aria-hidden="true">!</span></div></article>
     </section>
@@ -32,7 +31,6 @@
       <div class="filters" role="group" aria-label="Filter op status">
         <button class="filter-chip is-active" data-filter="Alles" type="button">Alles <span id="filter-total">0</span></button>
         <button class="filter-chip" data-filter="Niet gestart" type="button">Niet gestart</button>
-        <button class="filter-chip" data-filter="In uitvoering" type="button">In uitvoering</button>
         <button class="filter-chip" data-filter="Goedgekeurd" type="button">Goedgekeurd</button>
         <button class="filter-chip" data-filter="Afgekeurd" type="button">Afgekeurd</button>
       </div>
@@ -45,7 +43,7 @@
       <div class="dialog-heading"><div><p class="eyebrow">NIEUWE REGEL</p><h2>Keuring toevoegen</h2></div><button class="icon-button" type="button" id="close-dialog" aria-label="Sluiten">×</button></div>
       <label class="form-field">Omschrijving<input name="title" required maxlength="100" placeholder="Bijv. Visuele inspectie leidingwerk"></label>
       <label class="form-field">Onderdeel<select name="section" required><option>CDG</option><option>VH1A</option><option>VH1B</option><option>VH1C</option><option>VH1D</option><option>VH3A</option><option>VH3B</option><option>VH3C</option><option>VH3D</option><option>VH5A</option><option>VH5B</option><option>VH5C</option><option>VH5D</option><option>Terreinkeuring</option></select></label>
-      <label class="form-field">Status<select name="status" required><option>Niet gestart</option><option>In uitvoering</option><option>Goedgekeurd</option><option>Afgekeurd</option></select></label>
+      <label class="form-field">Status<select name="status" required><option>Niet gestart</option><option>Goedgekeurd</option><option>Afgekeurd</option></select></label>
       <label class="form-field">Verantwoordelijke <span class="optional">(optioneel)</span><input name="owner" maxlength="60" placeholder="Naam verantwoordelijke"></label>
       <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-dialog">Annuleren</button><button class="button button-primary" type="submit">Keuring opslaan</button></div>
     </form>
