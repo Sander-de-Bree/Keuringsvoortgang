@@ -11,7 +11,7 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="#" aria-label="Keuringsvoortgang startpagina"><span class="brand-mark" aria-hidden="true">K</span><span>Keurings<span class="brand-light">voortgang</span></span></a>
+    <a class="brand" href="#" aria-label="Keuringsvoortgang startpagina"><span>Keurings<span class="brand-light">voortgang</span></span></a>
     <div class="topbar-actions"><div class="topbar-project"><span class="live-dot"></span> Project <strong>GIGA Leopard</strong></div><button id="theme-toggle" class="theme-toggle" type="button" aria-label="Schakel thema"></button></div>
   </header>
   <main class="page-shell">
@@ -27,6 +27,10 @@
     <section class="work-section" aria-labelledby="sections-title">
       <div class="section-heading"><div><p class="eyebrow">VOORTGANG PER ONDERDEEL</p><h2 id="sections-title">Onderdelen en keuringen</h2><p class="section-hint">Selecteer een onderdeel om de checklist te openen en keuringen af te vinken.</p></div>
         <label class="search-box"><span class="sr-only">Zoek keuringen</span><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Zoek keuring..." autocomplete="off"></label>
+      </div>
+      <div class="overall-progress" aria-labelledby="overall-progress-title">
+        <div class="overall-progress-heading"><div><span id="overall-progress-title">Algemene voortgang</span><small id="overall-progress-count">0 van 0 goedgekeurd</small></div><strong id="overall-progress-percent">0%</strong></div>
+        <div class="progress-track overall-progress-track" role="progressbar" aria-label="Algemene voortgang" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="overall-progress-bar"></span></div>
       </div>
       <div class="filters" role="group" aria-label="Filter op status">
         <button class="filter-chip is-active" data-filter="Alles" type="button">Alles <span id="filter-total">0</span></button>

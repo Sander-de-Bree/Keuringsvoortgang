@@ -27,21 +27,13 @@ function loadInspections() {
   } catch (error) {
     console.warn('Opgeslagen keuringen konden niet worden gelezen.', error);
   }
-
   const cleaned = saved
     .filter(item => item && typeof item === 'object')
     .map((item, index) => {
       const savedSection = String(item.section || 'Terreinkeuring');
       const section = savedSection === 'Overig' ? 'Terreinkeuring' : savedSection;
-      return {
-        id: String(item.id || `keuring-${index}`),
-        title: String(item.title || 'Naamloze keuring'),
-        section: sectionOrder.includes(section) ? section : 'Terreinkeuring',
-        status: item.status === 'In uitvoering' ? 'Niet gestart' : (statuses.includes(item.status) ? item.status : 'Niet gestart'),
-        owner: String(item.owner || '')
-      };
+      return { id: String(item.id || `keuring-${index}`), title: String(item.title || 'Naamloze keuring'), section: sectionOrder.includes(section) ? section : 'Terreinkeuring', status: statuses.includes(item.status) ? item.status : 'Niet gestart', owner: String(item.owner || '') };
     });
-
   const existingIds = new Set(cleaned.map(item => item.id));
   for (const inspection of defaultInspections()) {
     if (!existingIds.has(inspection.id)) cleaned.push(inspection);
@@ -81,6 +73,13 @@ function render() {
   document.getElementById('approved-count').textContent = inspections.filter(item => item.status === 'Goedgekeurd').length;
   document.getElementById('attention-count').textContent = inspections.filter(item => item.status === 'Afgekeurd').length;
   document.getElementById('filter-total').textContent = inspections.length;
+
+  const overallApproved = inspections.filter(item => item.status === 'Goedgekeurd').length;
+  const overallPercent = inspections.length ? Math.round((overallApproved / inspections.length) * 100) : 0;
+  document.getElementById('overall-progress-percent').textContent = `${overallPercent}%`;
+  document.getElementById('overall-progress-count').textContent = `${overallApproved} van ${inspections.length} goedgekeurd`;
+  document.getElementById('overall-progress-bar').style.width = `${overallPercent}%`;
+  document.querySelector('.overall-progress-track').setAttribute('aria-valuenow', String(overallPercent));
 
   document.getElementById('sections-container').innerHTML = sectionOrder.map(section => {
     const progress = sectionProgress(section);
@@ -162,10 +161,9 @@ dialog.addEventListener('click', event => { if (event.target === dialog) closeDi
 document.getElementById('search-input').addEventListener('input', event => { searchTerm = event.target.value; render(); });
 document.querySelectorAll('.filter-chip').forEach(button => button.addEventListener('click', () => {
   activeFilter = button.dataset.filter;
-  document.querySelectorAll('.filter-chip').forAll;
+  document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.toggle('is-active', chip === button));
   render();
 }));
-
 document.getElementById('inspection-form').addEventListener('submit', event => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
