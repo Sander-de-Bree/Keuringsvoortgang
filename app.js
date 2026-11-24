@@ -1,5 +1,6 @@
 const STORAGE_KEY = 'keuringsvoortgang-giga-leopard-v1';
 const THEME_KEY = 'keuringsvoortgang-theme';
+const AUTH_KEY = 'keuringsvoortgang-change-authorized';
 const DELETE_PASSWORD = 'Leopard1';
 const statuses = ['Niet gestart', 'Goedgekeurd', 'Afgekeurd'];
 const sectionOrder = ['CDG', 'VH1A', 'VH1B', 'VH1C', 'VH1D', 'VH3A', 'VH3B', 'VH3C', 'VH3D', 'VH5A', 'VH5B', 'VH5C', 'VH5D', 'Terreinkeuring'];
@@ -23,8 +24,12 @@ let expandedSection = 'CDG';
 let expandedRoom = '';
 let toastTimer;
 let pendingDeleteId = null;
+let pendingAction = null;
 let database = null;
-let remoteReady = false;
+
+function roomSlug(room) {
+  return room.toLocaleLowerCase('nl').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
 
 function defaultInspections() {
   const result = [];
@@ -39,10 +44,6 @@ function defaultInspections() {
     });
   });
   return result;
-}
-
-function roomSlug(room) {
-  return room.toLocaleLowerCase('nl').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
 function escapeHTML(value) {
@@ -66,6 +67,14 @@ function matchesInspection(item) {
   return matchesStatus && matchesSearch;
 }
 
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2600);
+}
+
 function saveInspections() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections));
   if (database) {
@@ -75,14 +84,6 @@ function saveInspections() {
         showToast('Firebase kon niet schrijven. Controleer Realtime Database-regels.');
       });
   }
-}
-
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.classList.add('is-visible');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2600);
 }
 
 function normalizeInspections(raw) {
@@ -104,11 +105,10 @@ function connectFirebase() {
     database = firebase.database();
     const ref = database.ref('keuringsvoortgang/inspections');
     ref.on('value', snapshot => {
-      remoteReady = true;
       const value = snapshot.val();
       if (value == null) {
         inspections = defaultInspections();
-        ref.set(inspections).catch(error => console.error(error));
+        ref.set(inspections).catch(console.error);
       } else {
         inspections = normalizeInspections(Array.isArray(value) ? value : Object.values(value));
         localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections));
@@ -125,6 +125,22 @@ function connectFirebase() {
   }
 }
 
+function isAuthorized() {
+  return sessionStorage.getItem(AUTH_KEY) === 'true';
+}
+
+function withChangeAuthorization(action) {
+  if (isAuthorized()) {
+    action();
+    return;
+  }
+  pendingAction = action;
+  document.getElementById('change-password').value = '';
+  document.getElementById('change-password-error').textContent = '';
+  document.getElementById('change-password-dialog').showModal();
+  setTimeout(() => document.getElementById('change-password').focus(), 0);
+}
+
 function inspectionRow(item) {
   return `<div class="inspection-row">
     <label class="inspection-check"><input type="checkbox" data-check-id="${escapeHTML(item.id)}" ${item.status === 'Goedgekeurd' ? 'checked' : ''} aria-label="Status van ${escapeHTML(item.title)}"><span class="checkmark" aria-hidden="true"></span></label>
@@ -138,7 +154,6 @@ function inspectionRow(item) {
 }
 
 function render() {
-  if (!document.getElementById('sections-container')) return;
   document.getElementById('total-count').textContent = inspections.length;
   document.getElementById('approved-count').textContent = inspections.filter(item => item.status === 'Goedgekeurd').length;
   document.getElementById('attention-count').textContent = inspections.filter(item => item.status === 'Afgekeurd').length;
@@ -190,16 +205,28 @@ function render() {
   document.querySelectorAll('[data-check-id]').forEach(input => input.addEventListener('change', event => {
     const item = inspections.find(entry => entry.id === event.target.dataset.checkId);
     if (!item) return;
-    item.status = event.target.checked ? 'Goedgekeurd' : 'Niet gestart';
-    saveInspections();
-    render();
+    const requestedStatus = event.target.checked ? 'Goedgekeurd' : 'Niet gestart';
+    const originalStatus = item.status;
+    event.target.checked = originalStatus === 'Goedgekeurd';
+    withChangeAuthorization(() => {
+      item.status = requestedStatus;
+      saveInspections();
+      render();
+      showToast(requestedStatus === 'Goedgekeurd' ? 'Keuring afgevinkt.' : 'Keuring weer opengezet.');
+    });
   }));
   document.querySelectorAll('[data-status-id]').forEach(select => select.addEventListener('change', event => {
     const item = inspections.find(entry => entry.id === event.target.dataset.statusId);
     if (!item) return;
-    item.status = event.target.value;
-    saveInspections();
-    render();
+    const requestedStatus = event.target.value;
+    const originalStatus = item.status;
+    event.target.value = originalStatus;
+    withChangeAuthorization(() => {
+      item.status = requestedStatus;
+      saveInspections();
+      render();
+      showToast('Status bijgewerkt.');
+    });
   }));
   document.querySelectorAll('[data-delete-id]').forEach(button => button.addEventListener('click', () => openDeleteDialog(button.dataset.deleteId)));
   document.querySelectorAll('[data-add-section]').forEach(button => button.addEventListener('click', () => openAddDialog(button.dataset.addSection)));
@@ -210,19 +237,22 @@ const dialog = document.getElementById('inspection-dialog');
 const deleteDialog = document.getElementById('delete-dialog');
 
 function openAddDialog(section = expandedSection || 'CDG', room = '') {
-  const form = document.getElementById('inspection-form');
-  form.elements.section.value = section;
-  form.elements.subsection.value = room || (section === 'CDG' ? (expandedRoom || cdgRooms[0]) : '');
-  document.getElementById('cdg-room-field').hidden = section !== 'CDG';
-  dialog.showModal();
+  withChangeAuthorization(() => {
+    const form = document.getElementById('inspection-form');
+    form.elements.section.value = section;
+    form.elements.subsection.value = room || (section === 'CDG' ? (expandedRoom || cdgRooms[0]) : '');
+    document.getElementById('cdg-room-field').hidden = section !== 'CDG';
+    dialog.showModal();
+  });
 }
 
 function openDeleteDialog(id) {
-  pendingDeleteId = id;
-  document.getElementById('delete-password').value = '';
-  document.getElementById('delete-error').textContent = '';
-  deleteDialog.showModal();
-  setTimeout(() => document.getElementById('delete-password').focus(), 0);
+  withChangeAuthorization(() => {
+    pendingDeleteId = id;
+    document.getElementById('delete-password').value = '';
+    document.getElementById('delete-error').textContent = '';
+    deleteDialog.showModal();
+  });
 }
 
 function setTheme(theme) {
@@ -243,21 +273,32 @@ document.getElementById('close-dialog').addEventListener('click', () => dialog.c
 document.getElementById('cancel-dialog').addEventListener('click', () => dialog.close());
 document.getElementById('close-delete-dialog').addEventListener('click', () => deleteDialog.close());
 document.getElementById('cancel-delete').addEventListener('click', () => deleteDialog.close());
+document.getElementById('cancel-change-password').addEventListener('click', () => {
+  pendingAction = null;
+  document.getElementById('change-password-dialog').close();
+});
 
 dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 deleteDialog.addEventListener('click', event => { if (event.target === deleteDialog) deleteDialog.close(); });
 
-document.getElementById('delete-form').addEventListener('submit', event => {
-  event.preventEventDefault;
-  const password = document.getElementById('delete-password').value;
-  if (password !== DELETE_PASSWORD) {
-    document.getElementById('delete-error').textContent = 'Onjuist wachtwoord.';
+document.getElementById('change-password-form').addEventListener('submit', event => {
+  event.preventDefault();
+  if (document.getElementById('change-password').value !== DELETE_PASSWORD) {
+    document.getElementById('change-password-error').textContent = 'Onjuist wachtwoord.';
     return;
   }
+  sessionStorage.setItem(AUTH_KEY, 'true');
+  const action = pendingAction;
+  pendingAction = null;
+  document.getElementById('change-password-dialog').close();
+  if (action) action();
+});
+
+document.getElementById('delete-form').addEventListener('submit', event => {
+  event.preventDefault();
   if (!pendingDeleteId) return;
   inspections = inspections.filter(item => item.id !== pendingDeleteId);
   pendingDeleteId = null;
-  document.getElementById('delete-password').value = '';
   deleteDialog.close();
   saveInspections();
   render();

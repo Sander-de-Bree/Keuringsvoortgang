@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#102b3f">
   <title>Keuringsvoortgang — GIGA Leopard</title>
-  <link rel="stylesheet" href="styles.css?v=firebase-v1">
-  <link rel="stylesheet" href="cdg.css?v=firebase-v1">
+  <link rel="stylesheet" href="styles.css?v=protected-changes-v1">
+  <link rel="stylesheet" href="cdg.css?v=protected-changes-v1">
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
-  <script src="app.js?v=firebase-v1" defer></script>
+  <script src="app.js?v=protected-changes-v1" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -44,6 +44,7 @@
     </section>
     <footer class="page-footer">Gegevens worden gedeeld via Firebase.</footer>
   </main>
+
   <dialog id="inspection-dialog" class="inspection-dialog">
     <form id="inspection-form">
       <div class="dialog-heading"><div><p class="eyebrow">NIEUWE REGEL</p><h2>Keuring toevoegen</h2></div><button class="icon-button" type="button" id="close-dialog" aria-label="Sluiten">×</button></div>
@@ -55,12 +56,21 @@
       <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-dialog">Annuleren</button><button class="button button-primary" type="submit">Keuring opslaan</button></div>
     </form>
   </dialog>
+
+  <dialog id="change-password-dialog" class="inspection-dialog">
+    <form id="change-password-form">
+      <div class="dialog-heading"><div><p class="eyebrow">BEVEILIGDE WIJZIGING</p><h2>Wachtwoord invoeren</h2></div></div>
+      <p class="delete-description">Na één succesvolle invoer blijft je sessie gedurende deze browsetab geautoriseerd voor alle wijzigingen.</p>
+      <label class="form-field">Wachtwoord<input id="change-password" type="password" required autocomplete="current-password" placeholder="Wachtwoord"></label>
+      <p id="change-password-error" class="delete-error" role="alert"></p>
+      <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-change-password">Annuleren</button><button class="button button-primary" type="submit">Inloggen</button></div>
+    </form>
+  </dialog>
+
   <dialog id="delete-dialog" class="inspection-dialog delete-dialog">
     <form id="delete-form">
       <div class="dialog-heading"><div><p class="eyebrow">BEVEILIGDE ACTIE</p><h2>Keuring verwijderen</h2></div><button class="icon-button" type="button" id="close-delete-dialog" aria-label="Sluiten">×</button></div>
-      <p class="delete-description">Voer het wachtwoord in om deze keuring definitief te verwijderen.</p>
-      <label class="form-field">Wachtwoord<input id="delete-password" name="password" type="password" required autocomplete="current-password" placeholder="Wachtwoord"></label>
-      <p id="delete-error" class="delete-error" role="alert"></p>
+      <p class="delete-description">Deze keuring wordt definitief verwijderd voor iedereen.</p>
       <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-delete">Annuleren</button><button class="button button-danger" type="submit">Verwijderen</button></div>
     </form>
   </dialog>
