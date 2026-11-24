@@ -6,8 +6,9 @@
   <meta name="theme-color" content="#102b3f">
   <meta name="description" content="Overzicht van keuringsstatussen voor project GIGA Leopard.">
   <title>Keuringsvoortgang — GIGA Leopard</title>
-  <link rel="stylesheet" href="styles.css">
-  <script src="app.js" defer></script>
+  <link rel="stylesheet" href="styles.css?v=cdg-rooms-v1">
+  <link rel="stylesheet" href="cdg.css?v=cdg-rooms-v1">
+  <script src="app.js?v=cdg-rooms-v1" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -47,6 +48,7 @@
       <div class="dialog-heading"><div><p class="eyebrow">NIEUWE REGEL</p><h2>Keuring toevoegen</h2></div><button class="icon-button" type="button" id="close-dialog" aria-label="Sluiten">×</button></div>
       <label class="form-field">Omschrijving<input name="title" required maxlength="100" placeholder="Bijv. Visuele inspectie leidingwerk"></label>
       <label class="form-field">Onderdeel<select name="section" required><option>CDG</option><option>VH1A</option><option>VH1B</option><option>VH1C</option><option>VH1D</option><option>VH3A</option><option>VH3B</option><option>VH3C</option><option>VH3D</option><option>VH5A</option><option>VH5B</option><option>VH5C</option><option>VH5D</option><option>Terreinkeuring</option></select></label>
+      <label class="form-field" id="cdg-room-field" hidden>CDG-subkop<select name="subsection"><option>Sectie 1</option><option>Sectie 3</option><option>Sectie 5</option><option>Sectie 7</option><option>LS-ruimte</option><option>SCADA-ruimte</option><option>ATR 1</option><option>ATR 3</option><option>ATR 5</option><option>Overig</option></select></label>
       <label class="form-field">Status<select name="status" required><option>Niet gestart</option><option>Goedgekeurd</option><option>Afgekeurd</option></select></label>
       <label class="form-field">Verantwoordelijke <span class="optional">(optioneel)</span><input name="owner" maxlength="60" placeholder="Naam verantwoordelijke"></label>
       <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-dialog">Annuleren</button><button class="button button-primary" type="submit">Keuring opslaan</button></div>
