@@ -35,6 +35,11 @@
       <article class="summary-card summary-attention"><div class="summary-label">Aandacht nodig</div><div class="summary-bottom"><strong id="attention-count">0</strong><span class="summary-icon" aria-hidden="true">!</span></div></article>
     </section>
 
+    <section class="progress-section" aria-labelledby="progress-title">
+      <div class="section-heading"><div><p class="eyebrow">VOORTGANG PER ONDERDEEL</p><h2 id="progress-title">Goedgekeurd per sectie</h2></div><p class="progress-explanation">Percentage = goedgekeurde keuringen ÷ totaal keuringen</p></div>
+      <div id="section-progress" class="progress-grid" aria-live="polite"></div>
+    </section>
+
     <section class="work-section" aria-labelledby="sections-title">
       <div class="section-heading">
         <div><p class="eyebrow">WERKVERDELING</p><h2 id="sections-title">Keuringen per sectie</h2></div>
@@ -56,7 +61,11 @@
     <form id="inspection-form">
       <div class="dialog-heading"><div><p class="eyebrow">NIEUWE REGEL</p><h2>Keuring toevoegen</h2></div><button class="icon-button" type="button" id="close-dialog" aria-label="Sluiten">×</button></div>
       <label class="form-field">Omschrijving<input name="title" required maxlength="100" placeholder="Bijv. Visuele inspectie leidingwerk"></label>
-      <label class="form-field">Sectie<select name="section" required><option value="Constructie">Constructie</option><option value="Installaties">Installaties</option><option value="Brandveiligheid">Brandveiligheid</option><option value="Afbouw">Afbouw</option><option value="Werktuigbouw">Werktuigbouw</option></select></label>
+      <label class="form-field">Sectie<select name="section" required>
+        <option>CDG</option><option>VH1A</option><option>VH1B</option><option>VH1C</option><option>VH1D</option>
+        <option>VH3A</option><option>VH3B</option><option>VH3C</option><option>VH3D</option>
+        <option>VH5A</option><option>VH5B</option><option>VH5C</option><option>VH5D</option><option>Overig</option>
+      </select></label>
       <label class="form-field">Status<select name="status" required><option>Niet gestart</option><option>In uitvoering</option><option>Goedgekeurd</option><option>Afgekeurd</option></select></label>
       <label class="form-field">Verantwoordelijke <span class="optional">(optioneel)</span><input name="owner" maxlength="60" placeholder="Naam verantwoordelijke"></label>
       <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-dialog">Annuleren</button><button class="button button-primary" type="submit">Keuring opslaan</button></div>

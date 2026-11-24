@@ -1,16 +1,16 @@
 const STORAGE_KEY = 'keuringsvoortgang-giga-leopard-v1';
 const statuses = ['Niet gestart', 'In uitvoering', 'Goedgekeurd', 'Afgekeurd'];
-const sectionOrder = ['Constructie', 'Installaties', 'Brandveiligheid', 'Afbouw', 'Werktuigbouw'];
+const sectionOrder = ['CDG', 'VH1A', 'VH1B', 'VH1C', 'VH1D', 'VH3A', 'VH3B', 'VH3C', 'VH3D', 'VH5A', 'VH5B', 'VH5C', 'VH5D', 'Overig'];
 const starterInspections = [
-  { id: 'k-1', section: 'Constructie', title: 'Controle staalconstructie', status: 'Goedgekeurd', owner: 'Team constructie' },
-  { id: 'k-2', section: 'Constructie', title: 'Lasinspectie hoofdverbindingen', status: 'In uitvoering', owner: 'Team constructie' },
-  { id: 'k-3', section: 'Constructie', title: 'Controle conservering', status: 'Niet gestart', owner: '' },
-  { id: 'k-4', section: 'Installaties', title: 'Elektrische installatie — metingen', status: 'In uitvoering', owner: 'Elektro' },
-  { id: 'k-5', section: 'Installaties', title: 'Controle aarding en potentiaalvereffening', status: 'Niet gestart', owner: '' },
-  { id: 'k-6', section: 'Brandveiligheid', title: 'Inspectie brandwerende doorvoeringen', status: 'Afgekeurd', owner: 'Brandveiligheid' },
-  { id: 'k-7', section: 'Brandveiligheid', title: 'Controle noodverlichting', status: 'Goedgekeurd', owner: 'Elektro' },
-  { id: 'k-8', section: 'Afbouw', title: 'Oplevercontrole technische ruimten', status: 'Niet gestart', owner: '' },
-  { id: 'k-9', section: 'Werktuigbouw', title: 'Druktest leidingwerk', status: 'In uitvoering', owner: 'WTB' }
+  { id: 'k-1', section: 'Overig', title: 'Controle staalconstructie', status: 'Goedgekeurd', owner: 'Team constructie' },
+  { id: 'k-2', section: 'Overig', title: 'Lasinspectie hoofdverbindingen', status: 'In uitvoering', owner: 'Team constructie' },
+  { id: 'k-3', section: 'Overig', title: 'Controle conservering', status: 'Niet gestart', owner: '' },
+  { id: 'k-4', section: 'Overig', title: 'Elektrische installatie — metingen', status: 'In uitvoering', owner: 'Elektro' },
+  { id: 'k-5', section: 'Overig', title: 'Controle aarding en potentiaalvereffening', status: 'Niet gestart', owner: '' },
+  { id: 'k-6', section: 'Overig', title: 'Inspectie brandwerende doorvoeringen', status: 'Afgekeurd', owner: 'Brandveiligheid' },
+  { id: 'k-7', section: 'Overig', title: 'Controle noodverlichting', status: 'Goedgekeurd', owner: 'Elektro' },
+  { id: 'k-8', section: 'Overig', title: 'Oplevercontrole technische ruimten', status: 'Niet gestart', owner: '' },
+  { id: 'k-9', section: 'Overig', title: 'Druktest leidingwerk', status: 'In uitvoering', owner: 'WTB' }
 ];
 
 let inspections = loadInspections();
@@ -23,7 +23,15 @@ function loadInspections() {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.filter(item => item && typeof item === 'object').map((item, index) => ({
+          id: String(item.id || `keuring-${index}`),
+          title: String(item.title || 'Naamloze keuring'),
+          section: sectionOrder.includes(item.section) ? item.section : 'Overig',
+          status: statuses.includes(item.status) ? item.status : 'Niet gestart',
+          owner: String(item.owner || '')
+        }));
+      }
     }
   } catch (error) {
     console.warn('Opgeslagen keuringen konden niet worden gelezen.', error);
@@ -45,6 +53,12 @@ function escapeHTML(value) {
   })[character]);
 }
 
+function sectionProgress(section) {
+  const items = inspections.filter(item => item.section === section);
+  const approved = items.filter(item => item.status === 'Goedgekeurd').length;
+  return { total: items.length, approved, percent: items.length ? Math.round((approved / items.length) * 100) : 0 };
+}
+
 function render() {
   document.getElementById('total-count').textContent = inspections.length;
   document.getElementById('progress-count').textContent = inspections.filter(item => item.status === 'In uitvoering').length;
@@ -52,15 +66,24 @@ function render() {
   document.getElementById('attention-count').textContent = inspections.filter(item => item.status === 'Afgekeurd').length;
   document.getElementById('filter-total').textContent = inspections.length;
 
+  const progressContainer = document.getElementById('section-progress');
+  progressContainer.innerHTML = sectionOrder.map(section => {
+    const progress = sectionProgress(section);
+    return `<article class="progress-card">
+      <div class="progress-card-heading"><h3>${escapeHTML(section)}</h3><strong>${progress.percent}%</strong></div>
+      <div class="progress-track" role="progressbar" aria-label="Voortgang ${escapeHTML(section)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}"><span style="width:${progress.percent}%"></span></div>
+      <p>${progress.approved} van ${progress.total} goedgekeurd</p>
+    </article>`;
+  }).join('');
+
   const query = searchTerm.trim().toLocaleLowerCase('nl');
   const visible = inspections.filter(item => {
     const matchesStatus = activeFilter === 'Alles' || item.status === activeFilter;
     const matchesSearch = !query || [item.title, item.section, item.owner].some(value => (value || '').toLocaleLowerCase('nl').includes(query));
     return matchesStatus && matchesSearch;
   });
-  const sections = [...new Set([...sectionOrder, ...inspections.map(item => item.section)])];
   const container = document.getElementById('sections-container');
-  const groups = sections.map(section => {
+  const groups = sectionOrder.map(section => {
     const items = visible.filter(item => item.section === section);
     if (!items.length) return '';
     return `<section class="inspection-group"><div class="group-heading"><h3>${escapeHTML(section)}</h3><span>${items.length} ${items.length === 1 ? 'keuring' : 'keuringen'}</span></div>
