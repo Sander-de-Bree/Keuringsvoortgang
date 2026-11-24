@@ -4,11 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#102b3f">
-  <meta name="description" content="Overzicht van keuringsstatussen voor project GIGA Leopard.">
   <title>Keuringsvoortgang — GIGA Leopard</title>
-  <link rel="stylesheet" href="styles.css?v=delete-v1">
-  <link rel="stylesheet" href="cdg.css?v=delete-v1">
-  <script src="app.js?v=delete-v1" defer></script>
+  <link rel="stylesheet" href="styles.css?v=firebase-v1">
+  <link rel="stylesheet" href="cdg.css?v=firebase-v1">
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+  <script src="app.js?v=firebase-v1" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -26,7 +27,7 @@
       <article class="summary-card summary-attention"><div class="summary-label">Aandacht nodig</div><div class="summary-bottom"><strong id="attention-count">0</strong><span class="summary-icon" aria-hidden="true">!</span></div></article>
     </section>
     <section class="work-section" aria-labelledby="sections-title">
-      <div class="section-heading"><div><p class="eyebrow">VOORTGANG PER ONDERDEEL</p><h2 id="sections-title">Onderdelen en keuringen</h2><p class="section-hint">Selecteer een onderdeel om de checklist te openen en keuringen af te vinken.</p></div>
+      <div class="section-heading"><div><p class="eyebrow">VOORTGANG PER ONDERDEEL</p><h2 id="sections-title">Onderdelen en keuringen</h2><p class="section-hint">Wijzigingen worden gedeeld via Firebase en worden direct in andere geopende vensters bijgewerkt.</p></div>
         <label class="search-box"><span class="sr-only">Zoek keuringen</span><span aria-hidden="true">⌕</span><input id="search-input" type="search" placeholder="Zoek keuring..." autocomplete="off"></label>
       </div>
       <div class="overall-progress" aria-labelledby="overall-progress-title">
@@ -41,9 +42,8 @@
       </div>
       <div id="sections-container" class="sections-container" aria-live="polite"></div>
     </section>
-    <footer class="page-footer">Gegevens worden lokaal in deze browser opgeslagen.</footer>
+    <footer class="page-footer">Gegevens worden gedeeld via Firebase.</footer>
   </main>
-
   <dialog id="inspection-dialog" class="inspection-dialog">
     <form id="inspection-form">
       <div class="dialog-heading"><div><p class="eyebrow">NIEUWE REGEL</p><h2>Keuring toevoegen</h2></div><button class="icon-button" type="button" id="close-dialog" aria-label="Sluiten">×</button></div>
@@ -55,7 +55,6 @@
       <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-dialog">Annuleren</button><button class="button button-primary" type="submit">Keuring opslaan</button></div>
     </form>
   </dialog>
-
   <dialog id="delete-dialog" class="inspection-dialog delete-dialog">
     <form id="delete-form">
       <div class="dialog-heading"><div><p class="eyebrow">BEVEILIGDE ACTIE</p><h2>Keuring verwijderen</h2></div><button class="icon-button" type="button" id="close-delete-dialog" aria-label="Sluiten">×</button></div>

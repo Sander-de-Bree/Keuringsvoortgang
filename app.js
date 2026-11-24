@@ -6,79 +6,43 @@ const sectionOrder = ['CDG', 'VH1A', 'VH1B', 'VH1C', 'VH1D', 'VH3A', 'VH3B', 'VH
 const cdgRooms = ['Sectie 1', 'Sectie 3', 'Sectie 5', 'Sectie 7', 'LS-ruimte', 'SCADA-ruimte', 'ATR 1', 'ATR 3', 'ATR 5', 'Overig'];
 const standardInspections = ['Roxtec doorvoeringen', 'Buiten kabellabels LS', 'Buiten kabellabels MS', 'Binnen kabellabels LS', 'Binnen kabellabels MS', 'Potentiaal aarding', 'Aanhaalmomenten aarding'];
 
-let inspections = loadInspections();
+const firebaseConfig = {
+  apiKey: 'AIzaSyCRw4K2LW5btTb_IDHQLGwTCwPO7JCeAMI',
+  authDomain: 'giga-leopard.firebaseapp.com',
+  databaseURL: 'https://giga-leopard-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'giga-leopard',
+  storageBucket: 'giga-leopard.firebasestorage.app',
+  messagingSenderId: '189408105137',
+  appId: '1:189408105137:web:b6ece6f71e841640f78890'
+};
+
+let inspections = [];
 let activeFilter = 'Alles';
 let searchTerm = '';
 let expandedSection = 'CDG';
 let expandedRoom = '';
 let toastTimer;
 let pendingDeleteId = null;
+let database = null;
+let remoteReady = false;
+
+function defaultInspections() {
+  const result = [];
+  sectionOrder.filter(section => section !== 'Terreinkeuring').forEach(section => {
+    const rooms = section === 'CDG' ? cdgRooms : [''];
+    rooms.forEach(room => {
+      standardInspections.forEach((title, index) => {
+        const item = { id: `default-${section}-${index + 1}${room ? `-${roomSlug(room)}` : ''}`, section, title, status: 'Niet gestart', owner: '' };
+        if (room) item.subsection = room;
+        result.push(item);
+      });
+    });
+  });
+  return result;
+}
 
 function roomSlug(room) {
   return room.toLocaleLowerCase('nl').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
-
-function defaultInspections() {
-  return sectionOrder.filter(section => section !== 'Terreinkeuring').flatMap(section => {
-    const rooms = section === 'CDG' ? cdgRooms : [''];
-    return rooms.flatMap(room => standardInspections.map((title, index) => ({
-      id: `default-${section}-${index + 1}${room ? `-${roomSlug(room)}` : ''}`,
-      section,
-      ...(room ? { subsection: room } : {}),
-      title,
-      status: 'Niet gestart',
-      owner: ''
-    })));
-  });
-}
-
-function loadInspections() {
-  let saved = [];
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) saved = parsed;
-    }
-  } catch (error) {
-    console.warn('Opgeslagen keuringen konden niet worden gelezen.', error);
-  }
-
-  const normalized = saved.filter(item => item && typeof item === 'object').map((item, index) => {
-    const oldSection = String(item.section || 'Terreinkeuring');
-    const section = oldSection === 'Overig' ? 'Terreinkeuring' : oldSection;
-    return {
-      id: String(item.id || `keuring-${index}`),
-      title: String(item.title || 'Naamloze keuring'),
-      section: sectionOrder.includes(section) ? section : 'Terreinkeuring',
-      ...(section === 'CDG' && cdgRooms.includes(item.subsection) ? { subsection: item.subsection } : {}),
-      status: item.status === 'In uitvoering' ? 'Niet gestart' : (statuses.includes(item.status) ? item.status : 'Niet gestart'),
-      owner: String(item.owner || '')
-    };
-  });
-
-  const migrated = [];
-  for (const item of normalized) {
-    if (item.section !== 'CDG' || item.subsection) {
-      migrated.push(item);
-    } else {
-      cdgRooms.forEach(room => migrated.push({ ...item, id: `${item.id}-${roomSlug(room)}`, subsection: room }));
-    }
-  }
-
-  const existingIds = new Set(migrated.map(item => item.id));
-  for (const item of defaultInspections()) {
-    if (!existingIds.has(item.id)) migrated.push(item);
-  }
-
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated)); }
-  catch (error) { console.warn('Keuringen konden niet worden bijgewerkt.', error); }
-  return migrated;
-}
-
-function saveInspections() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections)); }
-  catch (error) { showToast('Opslaan is niet gelukt. Controleer de browserinstellingen.'); }
 }
 
 function escapeHTML(value) {
@@ -102,9 +66,68 @@ function matchesInspection(item) {
   return matchesStatus && matchesSearch;
 }
 
+function saveInspections() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections));
+  if (database) {
+    database.ref('keuringsvoortgang/inspections').set(inspections)
+      .catch(error => {
+        console.error(error);
+        showToast('Firebase kon niet schrijven. Controleer Realtime Database-regels.');
+      });
+  }
+}
+
+function showToast(message) {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.classList.add('is-visible');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2600);
+}
+
+function normalizeInspections(raw) {
+  if (!Array.isArray(raw)) return defaultInspections();
+  return raw.map((item, index) => ({
+    id: String(item.id || `keuring-${index}`),
+    title: String(item.title || 'Naamloze keuring'),
+    section: sectionOrder.includes(item.section) ? item.section : 'Terreinkeuring',
+    ...(item.section === 'CDG' && cdgRooms.includes(item.subsection) ? { subsection: item.subsection } : {}),
+    status: statuses.includes(item.status) ? item.status : 'Niet gestart',
+    owner: String(item.owner || '')
+  }));
+}
+
+function connectFirebase() {
+  if (!window.firebase) return;
+  try {
+    firebase.initializeApp(firebaseConfig);
+    database = firebase.database();
+    const ref = database.ref('keuringsvoortgang/inspections');
+    ref.on('value', snapshot => {
+      remoteReady = true;
+      const value = snapshot.val();
+      if (value == null) {
+        inspections = defaultInspections();
+        ref.set(inspections).catch(error => console.error(error));
+      } else {
+        inspections = normalizeInspections(Array.isArray(value) ? value : Object.values(value));
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections));
+      }
+      render();
+    }, error => {
+      console.error(error);
+      showToast('Realtime verbinding mislukt. Controleer Firebase-regels.');
+      inspections = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || defaultInspections();
+      render();
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 function inspectionRow(item) {
   return `<div class="inspection-row">
-    <label class="inspection-check"><input type="checkbox" data-check-id="${escapeHTML(item.id)}" ${item.status === 'Goedgekeurd' ? 'checked' : ''} aria-label="${item.status === 'Goedgekeurd' ? 'Markeer als niet afgerond:' : 'Markeer als afgerond:'} ${escapeHTML(item.title)}"><span class="checkmark" aria-hidden="true"></span></label>
+    <label class="inspection-check"><input type="checkbox" data-check-id="${escapeHTML(item.id)}" ${item.status === 'Goedgekeurd' ? 'checked' : ''} aria-label="Status van ${escapeHTML(item.title)}"><span class="checkmark" aria-hidden="true"></span></label>
     <span class="row-marker marker-${statusClass(item.status)}" aria-hidden="true"></span>
     <span class="inspection-row-title ${item.status === 'Goedgekeurd' ? 'is-complete' : ''}">${escapeHTML(item.title)}</span>
     <span class="owner-cell">${item.owner ? escapeHTML(item.owner) : '<span class="muted">Niet toegewezen</span>'}</span>
@@ -115,17 +138,18 @@ function inspectionRow(item) {
 }
 
 function render() {
+  if (!document.getElementById('sections-container')) return;
   document.getElementById('total-count').textContent = inspections.length;
   document.getElementById('approved-count').textContent = inspections.filter(item => item.status === 'Goedgekeurd').length;
   document.getElementById('attention-count').textContent = inspections.filter(item => item.status === 'Afgekeurd').length;
   document.getElementById('filter-total').textContent = inspections.length;
 
-  const overallApproved = inspections.filter(item => item.status === 'Goedgekeurd').length;
-  const overallPercent = inspections.length ? Math.round((overallApproved / inspections.length) * 100) : 0;
-  document.getElementById('overall-progress-percent').textContent = `${overallPercent}%`;
-  document.getElementById('overall-progress-count').textContent = `${overallApproved} van ${inspections.length} goedgekeurd`;
-  document.getElementById('overall-progress-bar').style.width = `${overallPercent}%`;
-  document.querySelector('.overall-progress-track').setAttribute('aria-valuenow', String(overallPercent));
+  const approved = inspections.filter(item => item.status === 'Goedgekeurd').length;
+  const percent = inspections.length ? Math.round((approved / inspections.length) * 100) : 0;
+  document.getElementById('overall-progress-percent').textContent = `${percent}%`;
+  document.getElementById('overall-progress-count').textContent = `${approved} van ${inspections.length} goedgekeurd`;
+  document.getElementById('overall-progress-bar').style.width = `${percent}%`;
+  document.querySelector('.overall-progress-track').setAttribute('aria-valuenow', String(percent));
 
   document.getElementById('sections-container').innerHTML = sectionOrder.map(section => {
     const progress = sectionProgress(section);
@@ -151,14 +175,7 @@ function render() {
       content = `<div class="inspection-list">${items.length ? items.map(inspectionRow).join('') : '<p class="section-empty">Nog geen keuringen toegevoegd.</p>'}</div><button class="button button-add-section" type="button" data-add-section="${escapeHTML(section)}"><span aria-hidden="true">＋</span> Keuring toevoegen aan ${escapeHTML(section)}</button>`;
     }
 
-    return `<article class="section-card ${isExpanded ? 'is-expanded' : ''}">
-      <button class="section-toggle" type="button" data-section="${escapeHTML(section)}" aria-expanded="${isExpanded}">
-        <span class="section-card-main"><span class="section-name">${escapeHTML(section)}</span><span class="section-count">${progress.approved} van ${progress.total} goedgekeurd</span></span>
-        <span class="section-card-progress"><strong>${progress.percent}%</strong><span class="progress-track" role="progressbar" aria-label="Voortgang ${escapeHTML(section)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}"><span style="width:${progress.percent}%"></span></span></span>
-        <span class="section-chevron" aria-hidden="true">⌄</span>
-      </button>
-      ${isExpanded ? `<div class="section-content">${content}</div>` : ''}
-    </article>`;
+    return `<article class="section-card ${isExpanded ? 'is-expanded' : ''}"><button class="section-toggle" type="button" data-section="${escapeHTML(section)}" aria-expanded="${isExpanded}"><span class="section-card-main"><span class="section-name">${escapeHTML(section)}</span><span class="section-count">${progress.approved} van ${progress.total} goedgekeurd</span></span><span class="section-card-progress"><strong>${progress.percent}%</strong><span class="progress-track" role="progressbar" aria-label="Voortgang ${escapeHTML(section)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}"><span style="width:${progress.percent}%"></span></span></span><span class="section-chevron" aria-hidden="true">⌄</span></button>${isExpanded ? `<div class="section-content">${content}</div>` : ''}</article>`;
   }).join('');
 
   document.querySelectorAll('.section-toggle').forEach(button => button.addEventListener('click', () => {
@@ -170,48 +187,28 @@ function render() {
     expandedRoom = expandedRoom === button.dataset.room ? '' : button.dataset.room;
     render();
   }));
-  document.querySelectorAll('[data-check-id]').forEach(input => input.addEventListener('change', updateCheck));
-  document.querySelectorAll('[data-status-id]').forEach(select => select.addEventListener('change', updateStatus));
+  document.querySelectorAll('[data-check-id]').forEach(input => input.addEventListener('change', event => {
+    const item = inspections.find(entry => entry.id === event.target.dataset.checkId);
+    if (!item) return;
+    item.status = event.target.checked ? 'Goedgekeurd' : 'Niet gestart';
+    saveInspections();
+    render();
+  }));
+  document.querySelectorAll('[data-status-id]').forEach(select => select.addEventListener('change', event => {
+    const item = inspections.find(entry => entry.id === event.target.dataset.statusId);
+    if (!item) return;
+    item.status = event.target.value;
+    saveInspections();
+    render();
+  }));
   document.querySelectorAll('[data-delete-id]').forEach(button => button.addEventListener('click', () => openDeleteDialog(button.dataset.deleteId)));
   document.querySelectorAll('[data-add-section]').forEach(button => button.addEventListener('click', () => openAddDialog(button.dataset.addSection)));
   document.querySelectorAll('[data-add-room]').forEach(button => button.addEventListener('click', () => openAddDialog('CDG', button.dataset.addRoom)));
 }
 
-function updateCheck(event) {
-  const inspection = inspections.find(item => item.id === event.target.dataset.checkId);
-  if (!inspection) return;
-  inspection.status = event.target.checked ? 'Goedgekeurd' : 'Niet gestart';
-  saveInspections();
-  render();
-  showToast(event.target.checked ? 'Keuring afgevinkt.' : 'Keuring weer opengezet.');
-}
-
-function updateStatus(event) {
-  const inspection = inspections.find(item => item.id === event.target.dataset.statusId);
-  if (!inspection) return;
-  inspection.status = event.target.value;
-  saveInspections();
-  render();
-  showToast('Status bijgewerkt.');
-}
-
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  toast.textContent = message;
-  toast.classList.add('is-visible');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toast.classList.remove('is-visible'), 2600);
-}
-
 const dialog = document.getElementById('inspection-dialog');
 const deleteDialog = document.getElementById('delete-dialog');
-function closeDialog() { dialog.close(); }
-function closeDeleteDialog() {
-  pendingDeleteId = null;
-  document.getElementById('delete-password').value = '';
-  document.getElementById('delete-error').textContent = '';
-  deleteDialog.close();
-}
+
 function openAddDialog(section = expandedSection || 'CDG', room = '') {
   const form = document.getElementById('inspection-form');
   form.elements.section.value = section;
@@ -231,7 +228,7 @@ function openDeleteDialog(id) {
 function setTheme(theme) {
   const normalized = theme === 'light' ? 'light' : 'dark';
   document.documentElement.dataset.theme = normalized;
-  try { localStorage.setItem(THEME_KEY, normalized); } catch (error) { console.warn(error); }
+  localStorage.setItem(THEME_KEY, normalized);
   const button = document.getElementById('theme-toggle');
   const dark = normalized === 'dark';
   button.setAttribute('aria-label', dark ? 'Schakel naar lichte modus' : 'Schakel naar donkere modus');
@@ -239,19 +236,19 @@ function setTheme(theme) {
 }
 
 document.getElementById('theme-toggle').addEventListener('click', () => setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'));
-try { setTheme(localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark'); }
-catch (error) { document.documentElement.dataset.theme = 'dark'; }
+setTheme(localStorage.getItem(THEME_KEY) === 'light' ? 'light' : 'dark');
 
 document.getElementById('add-inspection').addEventListener('click', () => openAddDialog());
-document.getElementById('close-dialog').addEventListener('click', closeDialog);
-document.getElementById('cancel-dialog').addEventListener('click', closeDialog);
-document.getElementById('close-delete-dialog').addEventListener('click', closeDeleteDialog);
-document.getElementById('cancel-delete').addEventListener('click', closeDeleteDialog);
-dialog.addEventListener('click', event => { if (event.target === dialog) closeDialog(); });
-deleteDialog.addEventListener('click', event => { if (event.target === deleteDialog) closeDeleteDialog(); });
+document.getElementById('close-dialog').addEventListener('click', () => dialog.close());
+document.getElementById('cancel-dialog').addEventListener('click', () => dialog.close());
+document.getElementById('close-delete-dialog').addEventListener('click', () => deleteDialog.close());
+document.getElementById('cancel-delete').addEventListener('click', () => deleteDialog.close());
+
+dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+deleteDialog.addEventListener('click', event => { if (event.target === deleteDialog) deleteDialog.close(); });
 
 document.getElementById('delete-form').addEventListener('submit', event => {
-  event.preventDefault();
+  event.preventEventDefault;
   const password = document.getElementById('delete-password').value;
   if (password !== DELETE_PASSWORD) {
     document.getElementById('delete-error').textContent = 'Onjuist wachtwoord.';
@@ -259,8 +256,10 @@ document.getElementById('delete-form').addEventListener('submit', event => {
   }
   if (!pendingDeleteId) return;
   inspections = inspections.filter(item => item.id !== pendingDeleteId);
+  pendingDeleteId = null;
+  document.getElementById('delete-password').value = '';
+  deleteDialog.close();
   saveInspections();
-  closeDeleteDialog();
   render();
   showToast('Keuring verwijderd.');
 });
@@ -277,16 +276,10 @@ document.getElementById('inspection-form').addEventListener('submit', event => {
   const form = new FormData(event.currentTarget);
   const section = String(form.get('section'));
   const subsection = section === 'CDG' ? String(form.get('subsection')) : '';
-  inspections.push({
-    id: `k-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    title: String(form.get('title')).trim(), section,
-    ...(subsection ? { subsection } : {}),
-    status: String(form.get('status')),
-    owner: String(form.get('owner')).trim()
-  });
+  inspections.push({ id: `k-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, title: String(form.get('title')).trim(), section, ...(subsection ? { subsection } : {}), status: String(form.get('status')), owner: String(form.get('owner')).trim() });
   saveInspections();
   event.currentTarget.reset();
-  closeDialog();
+  dialog.close();
   expandedSection = section;
   if (subsection) expandedRoom = subsection;
   activeFilter = 'Alles';
@@ -295,4 +288,6 @@ document.getElementById('inspection-form').addEventListener('submit', event => {
   showToast('Keuring toegevoegd.');
 });
 
+inspections = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || defaultInspections();
 render();
+connectFirebase();
