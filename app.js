@@ -27,21 +27,17 @@ let pendingDeleteId = null;
 let pendingAction = null;
 let database = null;
 
-function roomSlug(room) {
-  return room.toLocaleLowerCase('nl').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-}
+function roomSlug(room) { return room.toLocaleLowerCase('nl').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
 
 function defaultInspections() {
   const result = [];
   sectionOrder.filter(section => section !== 'Terreinkeuring').forEach(section => {
     const rooms = section === 'CDG' ? cdgRooms : [''];
-    rooms.forEach(room => {
-      standardInspections.forEach((title, index) => {
-        const item = { id: `default-${section}-${index + 1}${room ? `-${roomSlug(room)}` : ''}`, section, title, status: 'Niet gestart', owner: '' };
-        if (room) item.subsection = room;
-        result.push(item);
-      });
-    });
+    rooms.forEach(room => standardInspections.forEach((title, index) => {
+      const item = { id: `default-${section}-${index + 1}${room ? `-${roomSlug(room)}` : ''}`, section, title, status: 'Niet gestart', owner: '' };
+      if (room) item.subsection = room;
+      result.push(item);
+    }));
   });
   return result;
 }
@@ -78,11 +74,10 @@ function showToast(message) {
 function saveInspections() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(inspections));
   if (database) {
-    database.ref('keuringsvoortgang/inspections').set(inspections)
-      .catch(error => {
-        console.error(error);
-        showToast('Firebase kon niet schrijven. Controleer Realtime Database-regels.');
-      });
+    database.ref('keuringsvoortgang/inspections').set(inspections).catch(error => {
+      console.error(error);
+      showToast('Firebase kon niet schrijven. Controleer Realtime Database-regels.');
+    });
   }
 }
 
@@ -120,20 +115,13 @@ function connectFirebase() {
       inspections = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || defaultInspections();
       render();
     });
-  } catch (error) {
-    console.error(error);
-  }
+  } catch (error) { console.error(error); }
 }
 
-function isAuthorized() {
-  return sessionStorage.getItem(AUTH_KEY) === 'true';
-}
+function isAuthorized() { return sessionStorage.getItem(AUTH_KEY) === 'true'; }
 
 function withChangeAuthorization(action) {
-  if (isAuthorized()) {
-    action();
-    return;
-  }
+  if (isAuthorized()) { action(); return; }
   pendingAction = action;
   document.getElementById('change-password').value = '';
   document.getElementById('change-password-error').textContent = '';
@@ -249,9 +237,7 @@ function openAddDialog(section = expandedSection || 'CDG', room = '') {
 function openDeleteDialog(id) {
   withChangeAuthorization(() => {
     pendingDeleteId = id;
-    document.getElementById('delete-password').value = '';
-    document.getElementById('delete-error').textContent = '';
-    deleteDialog.showModal();
+    document.getElementById('delete-dialog').showModal();
   });
 }
 
@@ -308,7 +294,7 @@ document.getElementById('delete-form').addEventListener('submit', event => {
 document.getElementById('search-input').addEventListener('input', event => { searchTerm = event.target.value; render(); });
 document.querySelectorAll('.filter-chip').forEach(button => button.addEventListener('click', () => {
   activeFilter = button.dataset.filter;
-  document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.toggle('is-active', chip === button));
+  document.querySelectorAll('.filter-chip').forAll;
   render();
 }));
 
