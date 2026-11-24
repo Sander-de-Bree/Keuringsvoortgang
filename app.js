@@ -47,9 +47,6 @@ function loadInspections() {
   } catch (error) {
     console.warn('Opgeslagen keuringen konden niet worden gelezen.', error);
   }
-
-  // Remove the original demo records, preserve user-added records, and add the
-  // requested checklist wherever a section does not already have it.
   const cleaned = saved
     .filter(item => item && typeof item === 'object')
     .filter(item => !/^k-[1-9]$/.test(String(item.id || '')) && !oldExampleTitles.has(String(item.title || '')))
@@ -76,9 +73,7 @@ function saveInspections() {
 }
 
 function escapeHTML(value) {
-  return String(value).replace(/[&<>"']/g, character => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-  })[character]);
+  return String(value).replace(/[&<>"']/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[character]);
 }
 
 function statusClass(status) {
@@ -174,11 +169,19 @@ function openAddDialog(section = expandedSection || 'CDG') {
   dialog.showModal();
 }
 
-document.getElementById('theme-toggle').addEventListener('click', () => {
-  const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
-  document.documentElement.dataset.theme = nextTheme;
-  localStorage.setItem(THEME_KEY, nextTheme);
+function setTheme(theme) {
+  const normalizedTheme = theme === 'light' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = normalizedTheme;
+  try {
+    localStorage.setItem(THEME_KEY, normalizedTheme);
+  } catch (error) {
+    console.warn('Themakeuze kon niet worden opgeslagen.', error);
+  }
   updateThemeButton();
+}
+
+document.getElementById('theme-toggle').addEventListener('click', () => {
+  setTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
 });
 function updateThemeButton() {
   const dark = document.documentElement.dataset.theme === 'dark';
@@ -187,12 +190,13 @@ function updateThemeButton() {
   button.innerHTML = dark ? '<span aria-hidden="true">☀</span><span class="theme-label">Licht</span>' : '<span aria-hidden="true">☾</span><span class="theme-label">Donker</span>';
 }
 try {
+  // Dark is the default unless the visitor has explicitly selected a theme.
   const savedTheme = localStorage.getItem(THEME_KEY);
-  if (savedTheme === 'dark' || savedTheme === 'light') document.documentElement.dataset.theme = savedTheme;
+  setTheme(savedTheme === 'light' ? 'light' : 'dark');
 } catch (error) {
-  console.warn('Themakeuze kon niet worden geladen.', error);
+  document.documentElement.dataset.theme = 'dark';
+  updateThemeButton();
 }
-updateThemeButton();
 
 document.getElementById('add-inspection').addEventListener('click', () => openAddDialog());
 document.getElementById('close-dialog').addEventListener('click', closeDialog);
