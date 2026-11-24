@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#102b3f">
   <meta name="description" content="Overzicht van keuringsstatussen voor project GIGA Leopard.">
   <title>Keuringsvoortgang — GIGA Leopard</title>
-  <link rel="stylesheet" href="styles.css?v=cdg-rooms-v1">
-  <link rel="stylesheet" href="cdg.css?v=cdg-rooms-v1">
-  <script src="app.js?v=cdg-rooms-v1" defer></script>
+  <link rel="stylesheet" href="styles.css?v=delete-v1">
+  <link rel="stylesheet" href="cdg.css?v=delete-v1">
+  <script src="app.js?v=delete-v1" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -43,6 +43,7 @@
     </section>
     <footer class="page-footer">Gegevens worden lokaal in deze browser opgeslagen.</footer>
   </main>
+
   <dialog id="inspection-dialog" class="inspection-dialog">
     <form id="inspection-form">
       <div class="dialog-heading"><div><p class="eyebrow">NIEUWE REGEL</p><h2>Keuring toevoegen</h2></div><button class="icon-button" type="button" id="close-dialog" aria-label="Sluiten">×</button></div>
@@ -52,6 +53,16 @@
       <label class="form-field">Status<select name="status" required><option>Niet gestart</option><option>Goedgekeurd</option><option>Afgekeurd</option></select></label>
       <label class="form-field">Verantwoordelijke <span class="optional">(optioneel)</span><input name="owner" maxlength="60" placeholder="Naam verantwoordelijke"></label>
       <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-dialog">Annuleren</button><button class="button button-primary" type="submit">Keuring opslaan</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="delete-dialog" class="inspection-dialog delete-dialog">
+    <form id="delete-form">
+      <div class="dialog-heading"><div><p class="eyebrow">BEVEILIGDE ACTIE</p><h2>Keuring verwijderen</h2></div><button class="icon-button" type="button" id="close-delete-dialog" aria-label="Sluiten">×</button></div>
+      <p class="delete-description">Voer het wachtwoord in om deze keuring definitief te verwijderen.</p>
+      <label class="form-field">Wachtwoord<input id="delete-password" name="password" type="password" required autocomplete="current-password" placeholder="Wachtwoord"></label>
+      <p id="delete-error" class="delete-error" role="alert"></p>
+      <div class="dialog-actions"><button class="button button-secondary" type="button" id="cancel-delete">Annuleren</button><button class="button button-danger" type="submit">Verwijderen</button></div>
     </form>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>

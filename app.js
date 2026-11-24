@@ -1,15 +1,18 @@
 const STORAGE_KEY = 'keuringsvoortgang-giga-leopard-v1';
 const THEME_KEY = 'keuringsvoortgang-theme';
+const DELETE_PASSWORD = 'Leopard1';
 const statuses = ['Niet gestart', 'Goedgekeurd', 'Afgekeurd'];
 const sectionOrder = ['CDG', 'VH1A', 'VH1B', 'VH1C', 'VH1D', 'VH3A', 'VH3B', 'VH3C', 'VH3D', 'VH5A', 'VH5B', 'VH5C', 'VH5D', 'Terreinkeuring'];
 const cdgRooms = ['Sectie 1', 'Sectie 3', 'Sectie 5', 'Sectie 7', 'LS-ruimte', 'SCADA-ruimte', 'ATR 1', 'ATR 3', 'ATR 5', 'Overig'];
 const standardInspections = ['Roxtec doorvoeringen', 'Buiten kabellabels LS', 'Buiten kabellabels MS', 'Binnen kabellabels LS', 'Binnen kabellabels MS', 'Potentiaal aarding', 'Aanhaalmomenten aarding'];
+
 let inspections = loadInspections();
 let activeFilter = 'Alles';
 let searchTerm = '';
 let expandedSection = 'CDG';
 let expandedRoom = '';
 let toastTimer;
+let pendingDeleteId = null;
 
 function roomSlug(room) {
   return room.toLocaleLowerCase('nl').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -54,22 +57,22 @@ function loadInspections() {
     };
   });
 
-  // Put every existing CDG inspection in every CDG room, retaining its current status.
   const migrated = [];
   for (const item of normalized) {
     if (item.section !== 'CDG' || item.subsection) {
       migrated.push(item);
-      continue;
+    } else {
+      cdgRooms.forEach(room => migrated.push({ ...item, id: `${item.id}-${roomSlug(room)}`, subsection: room }));
     }
-    cdgRooms.forEach(room => migrated.push({ ...item, id: `${item.id}-${roomSlug(room)}`, subsection: room }));
   }
 
   const existingIds = new Set(migrated.map(item => item.id));
   for (const item of defaultInspections()) {
     if (!existingIds.has(item.id)) migrated.push(item);
   }
+
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated)); }
-  catch (error) { console.warn('Keuringen konden niet worden bijgewerkt in de browseropslag.', error); }
+  catch (error) { console.warn('Keuringen konden niet worden bijgewerkt.', error); }
   return migrated;
 }
 
@@ -107,6 +110,7 @@ function inspectionRow(item) {
     <span class="owner-cell">${item.owner ? escapeHTML(item.owner) : '<span class="muted">Niet toegewezen</span>'}</span>
     <label class="sr-only" for="status-${escapeHTML(item.id)}">Status van ${escapeHTML(item.title)}</label>
     <select class="status-select status-${statusClass(item.status)}" id="status-${escapeHTML(item.id)}" data-status-id="${escapeHTML(item.id)}">${statuses.map(status => `<option${item.status === status ? ' selected' : ''}>${status}</option>`).join('')}</select>
+    <button class="delete-button" type="button" data-delete-id="${escapeHTML(item.id)}" aria-label="Verwijder ${escapeHTML(item.title)}" title="Keuring verwijderen">×</button>
   </div>`;
 }
 
@@ -127,6 +131,7 @@ function render() {
     const progress = sectionProgress(section);
     const isExpanded = expandedSection === section;
     let content;
+
     if (section === 'CDG') {
       content = cdgRooms.map(room => {
         const roomItems = inspections.filter(item => item.section === 'CDG' && item.subsection === room && matchesInspection(item));
@@ -146,7 +151,14 @@ function render() {
       content = `<div class="inspection-list">${items.length ? items.map(inspectionRow).join('') : '<p class="section-empty">Nog geen keuringen toegevoegd.</p>'}</div><button class="button button-add-section" type="button" data-add-section="${escapeHTML(section)}"><span aria-hidden="true">＋</span> Keuring toevoegen aan ${escapeHTML(section)}</button>`;
     }
 
-    return `<article class="section-card ${isExpanded ? 'is-expanded' : ''}"><button class="section-toggle" type="button" data-section="${escapeHTML(section)}" aria-expanded="${isExpanded}"><span class="section-card-main"><span class="section-name">${escapeHTML(section)}</span><span class="section-count">${progress.approved} van ${progress.total} goedgekeurd</span></span><span class="section-card-progress"><strong>${progress.percent}%</strong><span class="progress-track" role="progressbar" aria-label="Voortgang ${escapeHTML(section)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}"><span style="width:${progress.percent}%"></span></span></span><span class="section-chevron" aria-hidden="true">⌄</span></button>${isExpanded ? `<div class="section-content">${content}</div>` : ''}</article>`;
+    return `<article class="section-card ${isExpanded ? 'is-expanded' : ''}">
+      <button class="section-toggle" type="button" data-section="${escapeHTML(section)}" aria-expanded="${isExpanded}">
+        <span class="section-card-main"><span class="section-name">${escapeHTML(section)}</span><span class="section-count">${progress.approved} van ${progress.total} goedgekeurd</span></span>
+        <span class="section-card-progress"><strong>${progress.percent}%</strong><span class="progress-track" role="progressbar" aria-label="Voortgang ${escapeHTML(section)}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.percent}"><span style="width:${progress.percent}%"></span></span></span>
+        <span class="section-chevron" aria-hidden="true">⌄</span>
+      </button>
+      ${isExpanded ? `<div class="section-content">${content}</div>` : ''}
+    </article>`;
   }).join('');
 
   document.querySelectorAll('.section-toggle').forEach(button => button.addEventListener('click', () => {
@@ -160,6 +172,7 @@ function render() {
   }));
   document.querySelectorAll('[data-check-id]').forEach(input => input.addEventListener('change', updateCheck));
   document.querySelectorAll('[data-status-id]').forEach(select => select.addEventListener('change', updateStatus));
+  document.querySelectorAll('[data-delete-id]').forEach(button => button.addEventListener('click', () => openDeleteDialog(button.dataset.deleteId)));
   document.querySelectorAll('[data-add-section]').forEach(button => button.addEventListener('click', () => openAddDialog(button.dataset.addSection)));
   document.querySelectorAll('[data-add-room]').forEach(button => button.addEventListener('click', () => openAddDialog('CDG', button.dataset.addRoom)));
 }
@@ -191,13 +204,28 @@ function showToast(message) {
 }
 
 const dialog = document.getElementById('inspection-dialog');
+const deleteDialog = document.getElementById('delete-dialog');
 function closeDialog() { dialog.close(); }
+function closeDeleteDialog() {
+  pendingDeleteId = null;
+  document.getElementById('delete-password').value = '';
+  document.getElementById('delete-error').textContent = '';
+  deleteDialog.close();
+}
 function openAddDialog(section = expandedSection || 'CDG', room = '') {
   const form = document.getElementById('inspection-form');
   form.elements.section.value = section;
   form.elements.subsection.value = room || (section === 'CDG' ? (expandedRoom || cdgRooms[0]) : '');
   document.getElementById('cdg-room-field').hidden = section !== 'CDG';
   dialog.showModal();
+}
+
+function openDeleteDialog(id) {
+  pendingDeleteId = id;
+  document.getElementById('delete-password').value = '';
+  document.getElementById('delete-error').textContent = '';
+  deleteDialog.showModal();
+  setTimeout(() => document.getElementById('delete-password').focus(), 0);
 }
 
 function setTheme(theme) {
@@ -217,13 +245,33 @@ catch (error) { document.documentElement.dataset.theme = 'dark'; }
 document.getElementById('add-inspection').addEventListener('click', () => openAddDialog());
 document.getElementById('close-dialog').addEventListener('click', closeDialog);
 document.getElementById('cancel-dialog').addEventListener('click', closeDialog);
+document.getElementById('close-delete-dialog').addEventListener('click', closeDeleteDialog);
+document.getElementById('cancel-delete').addEventListener('click', closeDeleteDialog);
 dialog.addEventListener('click', event => { if (event.target === dialog) closeDialog(); });
+deleteDialog.addEventListener('click', event => { if (event.target === deleteDialog) closeDeleteDialog(); });
+
+document.getElementById('delete-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const password = document.getElementById('delete-password').value;
+  if (password !== DELETE_PASSWORD) {
+    document.getElementById('delete-error').textContent = 'Onjuist wachtwoord.';
+    return;
+  }
+  if (!pendingDeleteId) return;
+  inspections = inspections.filter(item => item.id !== pendingDeleteId);
+  saveInspections();
+  closeDeleteDialog();
+  render();
+  showToast('Keuring verwijderd.');
+});
+
 document.getElementById('search-input').addEventListener('input', event => { searchTerm = event.target.value; render(); });
 document.querySelectorAll('.filter-chip').forEach(button => button.addEventListener('click', () => {
   activeFilter = button.dataset.filter;
   document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.toggle('is-active', chip === button));
   render();
 }));
+
 document.getElementById('inspection-form').addEventListener('submit', event => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
