@@ -58,8 +58,7 @@
     showToast('Keuring toegevoegd.');
   };
 
-  // Re-render rows after the original render, then protect edited names using the same
-  // one-password-per-page authorization flow as every other change.
+  // Form-name edits use the same password authorization as other inspection changes.
   render = () => {
     baseRender();
     document.querySelectorAll('[data-form-name-id]').forEach(input => input.addEventListener('change', event => {
@@ -77,7 +76,7 @@
   };
 
   const style = document.createElement('style');
-  style.textContent = `.inspection-form-name{min-width:140px;width:min(22vw,260px);max-width:100%;margin-left:10px;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface-soft);color:var(--text);font:inherit;font-size:12px}.inspection-form-name::placeholder{color:var(--muted)}.inspection-row{min-width:0}.inspection-row-title{min-width:0}@media(max-width:700px){.inspection-form-name{width:100%;min-width:0;margin:6px 0 0}.inspection-row{flex-wrap:wrap}}`;
+  style.textContent = `.inspection-form-name{min-width:140px;width:min(22vw,260px);max-width:100%;margin-left:0;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface-soft);color:var(--text);font:inherit;font-size:12px}.inspection-form-name::placeholder{color:var(--muted)}.inspection-row{min-width:0}.inspection-row-title{min-width:0}@media(max-width:700px){.inspection-form-name{width:100%;min-width:0;margin:6px 0 0}.inspection-row{flex-wrap:wrap}}`;
   document.head.append(style);
 
   // Re-render once the extension is installed so already-loaded records show the field.
